@@ -2,6 +2,13 @@
 
 A no-code historical strategy backtester. Pick a stock, define entry conditions (any number, combined with AND) and exit rules (holding period, stop-loss, take-profit, exit signal), and see how the strategy would have performed: metrics, an equity curve against buy-and-hold, and every simulated trade with the reason it fired. Strategies can be saved and reopened.
 
+<img width="1182" height="1244" alt="image" src="https://github.com/user-attachments/assets/40267afb-06fc-446a-b6ca-2592b1ff1b46" />
+
+<img width="1192" height="424" alt="image" src="https://github.com/user-attachments/assets/5ce09c69-1ccf-48dd-8068-5619ebdf7881" />
+
+<img width="828" height="1424" alt="image" src="https://github.com/user-attachments/assets/ca078872-a9ff-47f2-9ef0-3fe05f2eab1a" />
+
+
 > **Disclaimer:** for research and education only. Backtests use past data from an unofficial source (Yahoo Finance) and simplified fills; they do not predict future results and are not financial advice.
 
 - **Frontend:** React 19 + TypeScript + Vite + Tailwind v4 (`frontend/`)
