@@ -1,10 +1,11 @@
-import { useRef, useState } from "react";
-import { ApiError, runBacktest, saveStrategy, type SavedStrategy } from "./api";
+import { useEffect, useRef, useState } from "react";
+import { ApiError, AuthRequired, getAuthConfig, getMe, logout, runBacktest, saveStrategy, type SavedStrategy, type User } from "./api";
 import { newId } from "./conditions";
 import Results, { Failed } from "./components/Results";
 import Running from "./components/Running";
 import SaveDialog from "./components/SaveDialog";
 import SavedStrategies from "./components/SavedStrategies";
+import SignInDialog from "./components/SignInDialog";
 import StrategyBuilder from "./components/StrategyBuilder";
 import type { BacktestResult, Strategy } from "./types";
 
@@ -43,6 +44,41 @@ export default function App() {
   const [saved, setSaved] = useState<{ id: number; description: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // clientId is null when the server has login switched off (everything stays open).
+  const [clientId, setClientId] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [signIn, setSignIn] = useState<{ reason: string; then: "save" | "saved" } | null>(null);
+
+  useEffect(() => {
+    getAuthConfig()
+      .then(async (c) => { setClientId(c.googleClientId); if (c.googleClientId) setUser(await getMe()); })
+      .catch(() => {});
+  }, []);
+
+  const signedOut = clientId !== null && user === null;
+  const askSignIn = (reason: string, then: "save" | "saved") => setSignIn({ reason, then });
+  const startSave = () => (signedOut ? askSignIn("Sign in to save strategies to your account.", "save") : setSaving(true));
+  const openSaved = () => (signedOut ? askSignIn("Sign in to see your saved strategies.", "saved") : setView({ name: "saved" }));
+  const sessionExpired = (then: "save" | "saved") => {
+    setUser(null);
+    askSignIn("Your session expired. Sign in again to continue.", then);
+  };
+
+  const signedIn = (u: User) => {
+    setUser(u);
+    const then = signIn?.then;
+    setSignIn(null);
+    if (then === "save") setSaving(true);
+    if (then === "saved") setView({ name: "saved" });
+  };
+
+  const signOut = async () => {
+    await logout().catch(() => {});
+    setUser(null);
+    setSaved(null);
+    setSaving(false);
+    if (view.name === "saved") toBuilder();
+  };
 
   const run = async () => {
     abort.current?.abort();
@@ -67,7 +103,13 @@ export default function App() {
 
   const doSave = async (name: string, description: string) => {
     const definition = { ...strategy, name };
-    const s = await saveStrategy(saved?.id ?? null, name, description, definition);
+    let s: SavedStrategy;
+    try {
+      s = await saveStrategy(saved?.id ?? null, name, description, definition);
+    } catch (e) {
+      if (e instanceof AuthRequired) { setSaving(false); sessionExpired("save"); return; }
+      throw e;
+    }
     setStrategy(definition);
     setSaved({ id: s.id, description: s.description ?? "" });
     setSaving(false);
@@ -103,22 +145,35 @@ export default function App() {
             <span className="font-semibold tracking-tight">AlphaBacktest</span>
             <div className="flex gap-1">
               {navBtn("builder", "Strategy Builder", toBuilder)}
-              {navBtn("saved", "Saved Strategies", () => setView({ name: "saved" }))}
+              {navBtn("saved", "Saved Strategies", openSaved)}
             </div>
+            {clientId && (
+              <div className="ml-auto flex items-center gap-3 text-sm">
+                {user ? (
+                  <>
+                    <span className="text-slate-400 hidden sm:inline">{user.name ?? user.email}</span>
+                    <button onClick={signOut} className="text-slate-400 hover:text-slate-200">Sign out</button>
+                  </>
+                ) : (
+                  <button onClick={() => askSignIn("Sign in to save and reopen your strategies.", "saved")} className="text-slate-300 hover:text-white">Sign in</button>
+                )}
+              </div>
+            )}
           </div>
         </nav>
       )}
       {view.name === "builder" && (
-        <StrategyBuilder strategy={strategy} onChange={(s) => { setServerIssues([]); setStrategy(s); }} onRun={run} onSave={() => setSaving(true)} serverIssues={serverIssues} />
+        <StrategyBuilder strategy={strategy} onChange={(s) => { setServerIssues([]); setStrategy(s); }} onRun={run} onSave={startSave} serverIssues={serverIssues} />
       )}
       {view.name === "running" && <Running strategy={strategy} onCancel={() => { abort.current?.abort(); toBuilder(); }} />}
-      {view.name === "results" && <Results result={view.result} onEdit={toBuilder} onRunAgain={run} onSave={() => setSaving(true)} />}
-      {view.name === "saved" && <SavedStrategies onOpen={open} onNew={startNew} onBack={toBuilder} />}
+      {view.name === "results" && <Results result={view.result} onEdit={toBuilder} onRunAgain={run} onSave={startSave} />}
+      {view.name === "saved" && <SavedStrategies onOpen={open} onNew={startNew} onBack={toBuilder} onAuthRequired={() => { toBuilder(); sessionExpired("saved"); }} />}
       {view.name === "failed" && <Failed message={view.message} onRetry={run} onEdit={toBuilder} />}
       {saving && (
         <SaveDialog initialName={strategy.name} initialDescription={saved?.description ?? ""} isUpdate={saved !== null}
           onSave={doSave} onClose={() => setSaving(false)} />
       )}
+      {signIn && clientId && <SignInDialog clientId={clientId} reason={signIn.reason} onSignedIn={signedIn} onClose={() => setSignIn(null)} />}
       {toast && <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-lg bg-success/15 border border-success/30 text-success text-sm px-4 py-2">{toast}</div>}
     </div>
   );

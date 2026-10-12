@@ -6,28 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from .auth import current_user
 from .db import get_db
 from .models import Strategy
 from .orm import SavedStrategy, User
 
 router = APIRouter(prefix="/api/strategies", tags=["strategies"])
-
-LOCAL_USER_EMAIL = "local@alphabacktest.local"
-
-
-def current_user(db: Session = Depends(get_db)) -> User:
-    """No login yet: everyone is the single local user.
-
-    This is the one place to swap in real authentication later; every route
-    below already scopes its queries to the user this returns.
-    """
-    user = db.scalar(select(User).where(User.email == LOCAL_USER_EMAIL))
-    if user is None:
-        user = User(email=LOCAL_USER_EMAIL, name="Local user")
-        db.add(user)
-        db.commit()
-    return user
-
 
 class StrategyIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)

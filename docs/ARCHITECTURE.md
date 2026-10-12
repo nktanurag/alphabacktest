@@ -74,7 +74,7 @@ sequenceDiagram
     App->>App: SaveDialog: name + description
     App->>API: saveStrategy(id or null, ...)
     API->>S: POST /api/strategies (new) or PUT /api/strategies/{id} (opened one)
-    S->>S: current_user(): single local user until login exists
+    S->>S: current_user(): session cookie -> user (401 if signed out; shared local user if login is off)
     S->>DB: INSERT/UPDATE strategies (definition stored as JSON)
     alt same name already used by this user
         S-->>API: 409 name_taken -> message shown in the dialog
@@ -87,7 +87,31 @@ sequenceDiagram
     User->>App: Open -> strategy loaded into the builder
 ```
 
-Every query filters by `user_id`, so one user can never read, change or delete another's strategies (covered by a two-user test). Until login exists, `current_user()` returns one shared local user, so nothing is private yet.
+Every query filters by `user_id`, so one user can never read, change or delete another's strategies (covered by a two-user test). With login on, `current_user()` reads the signed session cookie and returns 401 when there is none, so strategies are private to the signed-in Google account. With login off (no `GOOGLE_CLIENT_ID`), it returns one shared local user, so nothing is private.
+
+### Google sign-in
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend (GoogleButton)
+    participant G as Google
+    participant A as auth.py
+    participant DB as Database
+
+    F->>A: GET /api/auth/config
+    A-->>F: googleClientId (null = login off)
+    U->>F: click Sign in with Google
+    F->>G: Google Identity Services popup
+    G-->>F: ID token (credential)
+    F->>A: POST /api/auth/google {credential}
+    A->>G: verify signature, audience, expiry (public keys)
+    A->>DB: find user by Google id, else by email, else create
+    A-->>F: Set-Cookie session (signed, HttpOnly, SameSite=Lax) + user
+    F->>A: later calls send the cookie automatically
+```
+
+The browser never holds a token it can read: the session cookie is HttpOnly. Expired or missing sessions come back as 401, which the frontend turns into the sign-in dialog.
 
 ## 3. Frontend
 
@@ -153,7 +177,8 @@ flowchart LR
 | File | Role |
 |---|---|
 | `api.py` | HTTP only. Routes: `GET /api/health`, `GET /api/symbols/search`, `POST /api/backtest`; mounts the strategies router. Maps failures to status codes; creates tables at startup |
-| `strategies.py` | Saved-strategy CRUD under `/api/strategies`; `current_user()` is the single seam for future authentication |
+| `auth.py` | Google sign-in (`/api/auth/config`, `/google`, `/me`, `/logout`), signed session cookie, and `current_user()` used by every user-scoped route |
+| `strategies.py` | Saved-strategy CRUD under `/api/strategies`, scoped to `current_user()` |
 | `db.py`, `orm.py` | SQLAlchemy engine/session (`DATABASE_URL`, SQLite by default) and the `users` / `strategies` tables (strategy definition stored as JSON/JSONB) |
 | `models.py` | Pydantic models: `Strategy`, `Condition`, `Indicator`/`Value` operands, `Trade`, `BacktestResult` |
 | `data.py` | `fetch_daily_bars()` (400-day warm-up, adjusted prices, 6 h cache, currency in `df.attrs`) and `search_symbols()` (stocks and ETFs only, cached) |

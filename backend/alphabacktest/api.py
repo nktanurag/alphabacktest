@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from . import data
+from . import auth, data
 from .db import init_db
 from .engine import run_backtest, validate_strategy
 from .models import BacktestResult, Strategy
@@ -14,11 +14,13 @@ from .strategies import router as strategies_router
 log = logging.getLogger("alphabacktest")
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    auth.check_config()
     init_db()
     yield
 
 
 app = FastAPI(title="AlphaBacktest", lifespan=lifespan)
+app.include_router(auth.router)
 app.include_router(strategies_router)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
