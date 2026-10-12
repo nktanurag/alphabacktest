@@ -10,3 +10,4 @@ sqlalchemy>=2.0
 google-auth>=2.35
 requests>=2.32
 itsdangerous>=2.2
+psycopg[binary]>=3.2

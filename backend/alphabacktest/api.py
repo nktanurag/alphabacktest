@@ -1,9 +1,10 @@
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import auth, data
 from .db import init_db
@@ -22,7 +23,8 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="AlphaBacktest", lifespan=lifespan)
 app.include_router(auth.router)
 app.include_router(strategies_router)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# No CORS middleware: the frontend is served from the same address as the API
+# (or proxied to it by the Vite dev server), so browsers never make cross-origin calls.
 
 
 @app.get("/api/health")
@@ -56,3 +58,11 @@ def backtest(strategy: Strategy):
     except Exception as e:
         log.exception("backtest failed")
         return JSONResponse(status_code=422, content={"error": "backtest_failed", "message": str(e)})
+
+
+# Serve the built frontend (npm run build -> frontend/dist) from the same server, so one
+# deployment hosts everything. Mounted last so every /api route above wins. Absent in
+# development, where the Vite dev server serves the UI instead.
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+if FRONTEND_DIST.is_dir():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
