@@ -15,7 +15,7 @@ A no-code historical strategy backtester. Pick a stock, define entry conditions 
 - **Backend:** Python 3.10+ with FastAPI, pandas, numpy and yfinance (`backend/`)
 - **Data:** daily prices from Yahoo Finance via `yfinance`
 
-Detailed design and code flow: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Backend API reference: [backend/README.md](backend/README.md).
+Hosting it on the internet: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Detailed design and code flow: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Backend API reference: [backend/README.md](backend/README.md).
 
 ## Repository layout
 

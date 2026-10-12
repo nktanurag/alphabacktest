@@ -6,7 +6,15 @@ from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 # SQLite for local development; set DATABASE_URL to a Postgres URL
 # (e.g. postgresql+psycopg://user:pass@host/db) for production.
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./alphabacktest.db")
+def normalize_database_url(url: str) -> str:
+    """Hosts hand out `postgres://` or `postgresql://` URLs; SQLAlchemy needs the driver named."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
+
+
+DATABASE_URL = normalize_database_url(os.environ.get("DATABASE_URL", "sqlite:///./alphabacktest.db"))
 
 _connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
 engine = create_engine(DATABASE_URL, connect_args=_connect_args)
