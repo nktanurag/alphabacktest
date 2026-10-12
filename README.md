@@ -2,6 +2,8 @@
 
 A no-code historical strategy backtester. Pick a stock, define entry conditions (any number, combined with AND) and exit rules (holding period, stop-loss, take-profit, exit signal), and see how the strategy would have performed: metrics, an equity curve against buy-and-hold, and every simulated trade with the reason it fired. Strategies can be saved and reopened.
 
+Live at: https://alphabacktest.onrender.com/
+
 <img width="1182" height="1244" alt="image" src="https://github.com/user-attachments/assets/40267afb-06fc-446a-b6ca-2592b1ff1b46" />
 
 <img width="1192" height="424" alt="image" src="https://github.com/user-attachments/assets/5ce09c69-1ccf-48dd-8068-5619ebdf7881" />
