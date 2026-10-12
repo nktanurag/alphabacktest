@@ -28,6 +28,7 @@ alphabacktest/
 │   ├── requirements.txt        # runtime; requirements-dev.txt adds test-only deps
 │   ├── alphabacktest/
 │   │   ├── api.py              # HTTP endpoints (FastAPI): backtest, symbol search
+│   │   ├── auth.py             # Google sign-in, session cookie, current_user()
 │   │   ├── strategies.py       # saved-strategy CRUD (scoped to the current user)
 │   │   ├── db.py, orm.py       # SQLAlchemy session + tables (users, strategies)
 │   │   ├── models.py           # request/response contract (Pydantic)
@@ -53,6 +54,8 @@ alphabacktest/
             ├── EquityChart.tsx       # strategy vs buy & hold (SVG, hover, table view)
             ├── SavedStrategies.tsx   # saved list: open / delete
             ├── SaveDialog.tsx        # name + description when saving
+            ├── SignInDialog.tsx      # "sign in to continue" prompt
+            ├── GoogleButton.tsx      # Google's sign-in button (loads their script)
             ├── TradeDrawer.tsx       # per-trade detail + "why did it trigger"
             └── ui.tsx                # Button, Section, Field, Stat, Modal
 ```
@@ -119,8 +122,29 @@ Open **http://localhost:5173**. The dev server forwards `/api` requests to the b
 | `DATABASE_URL` | backend environment | `sqlite:///./alphabacktest.db` | Database for saved strategies. For Postgres: `postgresql+psycopg://user:pass@host/db` (also `pip install "psycopg[binary]"`) |
 | `API_URL` | frontend environment | `http://localhost:8080` | Where the dev server proxies `/api` (for example `API_URL=http://localhost:9000 npm run dev`) |
 | `--port` | `uvicorn` flag | 8080 | Backend port; keep it in sync with `API_URL` |
+| `GOOGLE_CLIENT_ID` | backend environment | unset | Turns on Google sign-in. Unset = no login, everyone shares one local user |
+| `SESSION_SECRET` | backend environment | unset | Long random string that signs session cookies. Required when `GOOGLE_CLIENT_ID` is set |
+| `COOKIE_SECURE` | backend environment | off | Set to `1` when serving over HTTPS so the cookie is only sent securely |
 
-Other ports and hosts work too, as long as the frontend can reach the backend. There is no `.env` file; nothing secret is needed.
+Other ports and hosts work too, as long as the frontend can reach the backend. There is no `.env` file; settings are plain environment variables, and none are needed unless you turn on Google sign-in.
+
+### Google sign-in (optional)
+
+Without it the app works as before, with one shared local user. To make strategies private to each Google account:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/apis/credentials), create an **OAuth client ID** of type **Web application** (configure the consent screen first if asked).
+2. Under **Authorized JavaScript origins**, add `http://localhost:5173` (and your real site URL when you deploy). No redirect URI is needed.
+3. Start the backend with the client ID and a random secret:
+
+```bash
+export GOOGLE_CLIENT_ID="1234-abc.apps.googleusercontent.com"
+export SESSION_SECRET="$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+uvicorn alphabacktest.api:app --port 8080 --reload
+```
+
+Paste the client ID exactly as Google shows it; it already ends in `.apps.googleusercontent.com`, so don't add that again. Check with `curl -s localhost:8080/api/auth/config`. If the consent screen is in "Testing" mode, add your Google address under **Test users**. Google errors such as `invalid_client` (wrong or mistyped ID) or `origin_mismatch` (the page's address isn't in Authorized JavaScript origins) come from Google, not this app.
+
+Keep `SESSION_SECRET` the same between restarts, or everyone is signed out. Strategies saved before login was on belong to the shared local user and are not shown to Google accounts.
 
 ## Tests and checks
 
@@ -155,7 +179,7 @@ The backend tests run offline (no Yahoo access needed).
 - Exit rules, first to trigger wins: holding period, stop-loss, take-profit, and/or an exit signal built from conditions
 - Execution settings: initial capital, position size, commission, slippage, entry timing (next open or signal close)
 - Equity-curve chart of the strategy vs buy-and-hold (hover tooltip, table view), plus buy-and-hold return and drawdown
-- Saved strategies: save / update, list, open, delete (per-user tables; no login yet, so everyone is one local user)
+- Saved strategies: save / update, list, open, delete. With Google sign-in on they are private to your account; with it off everyone shares one local user
 - Results: total return, CAGR, win rate, profit factor, max drawdown, Sharpe; trade summary; sortable/filterable trade table; per-trade drawer with entry reasons
 - States: validation errors, running (cancellable), no trades, warnings, failure
 - Prices and P&L shown in the asset's own currency (e.g. INR for `RELIANCE.NS`)
@@ -173,7 +197,7 @@ The backend tests run offline (no Yahoo access needed).
 
 ## Known limitations
 
-- No login (strategies aren't private yet), no export, no stored backtest runs, no database migrations (tables are auto-created)
+- Login is optional and Google-only (no email/password), no export, no stored backtest runs, no database migrations (tables are auto-created)
 - Buy-and-hold is shown before costs
 - Yahoo Finance is an unofficial source: it can rate-limit (HTTP 429) or change without notice. Data failures show a friendly error; symbol search shows "Search is unavailable"
 - Indicators are implemented in `indicators.py` with pandas/numpy; they are cross-checked against the `ta` library in tests (identical after warm-up; the first bars differ slightly because we seed EMA/RSI with an SMA)
@@ -183,7 +207,7 @@ The backend tests run offline (no Yahoo access needed).
 
 ## Ideas for later
 
-OR condition groups, parameter sweeps, login, stored runs, export.
+OR condition groups, parameter sweeps, stored runs, export.
 
 ## License
 

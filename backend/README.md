@@ -197,7 +197,7 @@ Returns up to 8 stocks/ETFs matching a ticker or company name: `[{"symbol": "AAP
 
 ### Saved strategies
 
-All scoped to the current user (no login yet: a single local user, see `strategies.current_user()`).
+All scoped to the signed-in user. With login on (see Authentication below) they return 401 `not_authenticated` when signed out; with login off everyone is one shared local user.
 
 | Method | Path | Notes |
 |---|---|---|
@@ -209,10 +209,23 @@ All scoped to the current user (no login yet: a single local user, see `strategi
 
 Storage: SQLite file `alphabacktest.db` in the working directory by default; set `DATABASE_URL` (e.g. `postgresql+psycopg://...`) for Postgres. Tables are created at startup. Tables: `users` (email, name, password_hash, auth_provider, auth_provider_id: reserved for login) and `strategies` (user_id, name, description, JSON `definition`).
 
+### Authentication
+
+Login is on only when `GOOGLE_CLIENT_ID` is set (setup in the [root README](../README.md#google-sign-in-optional)); `SESSION_SECRET` is then required or the server refuses to start. `/api/backtest` and `/api/symbols/search` stay open either way.
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/api/auth/config` | `{"googleClientId": "..." or null}`; the frontend uses this to decide whether to show sign-in |
+| POST | `/api/auth/google` | Body `{"credential": "<Google ID token>"}`. Verifies it, sets the `session` cookie, returns `{id, email, name}`. 401 `invalid_token` / `email_unverified`; 400 `auth_disabled` when login is off |
+| GET | `/api/auth/me` | The signed-in user, or 401 |
+| POST | `/api/auth/logout` | Clears the cookie; 204 |
+
+The cookie is signed, HttpOnly and `SameSite=Lax`, valid for 14 days. Set `COOKIE_SECURE=1` when serving over HTTPS.
+
 ### Health check
 
 `GET /api/health` returns `{"ok": true}`.
 
 ## Not built yet
 
-Login, export, OR logic, parameter optimization, stored backtest runs, database migrations (tables are auto-created).
+Export, OR logic, parameter optimization, stored backtest runs, database migrations (tables are auto-created).

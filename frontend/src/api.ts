@@ -11,6 +11,36 @@ export class ApiError extends Error {
   }
 }
 
+/** The server wants a signed-in user (no session, or it expired). */
+export class AuthRequired extends Error {
+  constructor() { super("Please sign in."); }
+}
+
+export interface User { id: number; email: string | null; name: string | null }
+
+/** `googleClientId` is null when the server has login switched off. */
+export const getAuthConfig = async (): Promise<{ googleClientId: string | null }> => {
+  const res = await fetch("/api/auth/config");
+  if (!res.ok) throw new Error("config failed");
+  return res.json();
+};
+
+export const getMe = async (): Promise<User | null> => {
+  const res = await fetch("/api/auth/me");
+  return res.ok ? res.json() : null;
+};
+
+export async function loginWithGoogle(credential: string): Promise<User> {
+  const res = await fetch("/api/auth/google", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ credential }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body?.detail?.message ?? "Sign-in failed. Please try again.");
+  return body;
+}
+
+export const logout = () => fetch("/api/auth/logout", { method: "POST" });
+
 export async function runBacktest(strategy: Strategy, signal?: AbortSignal): Promise<BacktestResult> {
   let res: Response;
   try {
@@ -84,6 +114,7 @@ async function strategiesCall<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (res.status === 204) return undefined as T;
   const body = await res.json().catch(() => ({}));
+  if (res.status === 401) throw new AuthRequired();
   if (!res.ok) {
     throw new Error(body?.detail?.message ?? "Something went wrong. Please try again.");
   }

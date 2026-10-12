@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { deleteStrategy, listStrategies, type SavedStrategy } from "../api";
+import { AuthRequired, deleteStrategy, listStrategies, type SavedStrategy } from "../api";
 import { fmtDate } from "../format";
 import { Button } from "./ui";
 
-export default function SavedStrategies({ onOpen, onNew, onBack }: {
-  onOpen: (s: SavedStrategy) => void; onNew: () => void; onBack: () => void;
+export default function SavedStrategies({ onOpen, onNew, onBack, onAuthRequired }: {
+  onOpen: (s: SavedStrategy) => void; onNew: () => void; onBack: () => void; onAuthRequired: () => void;
 }) {
   const [items, setItems] = useState<SavedStrategy[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -12,13 +12,13 @@ export default function SavedStrategies({ onOpen, onNew, onBack }: {
 
   const load = () => {
     setError(null); setItems(null);
-    listStrategies().then(setItems).catch((e: Error) => setError(e.message));
+    listStrategies().then(setItems).catch((e: Error) => (e instanceof AuthRequired ? onAuthRequired() : setError(e.message)));
   };
   useEffect(load, []);
 
   const remove = async (id: number) => {
     try { await deleteStrategy(id); setItems((p) => p?.filter((s) => s.id !== id) ?? null); setConfirming(null); }
-    catch (e) { setError((e as Error).message); }
+    catch (e) { if (e instanceof AuthRequired) onAuthRequired(); else setError((e as Error).message); }
   };
 
   return (
