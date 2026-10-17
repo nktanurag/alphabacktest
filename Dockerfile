@@ -12,6 +12,7 @@ WORKDIR /app
 COPY backend/requirements.txt backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 COPY backend/alphabacktest backend/alphabacktest
+COPY backend/docqa backend/docqa
 COPY --from=frontend /build/frontend/dist frontend/dist
 RUN useradd --create-home app && chown -R app /app
 USER app

@@ -17,3 +17,8 @@ frontend/dist/
 .DS_Store
 .idea/
 .vscode/
+docqa_files/
+.model_cache/
+
+# Local agent folder (never commit)
+.claude/

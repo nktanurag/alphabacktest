@@ -11,6 +11,8 @@ flowchart LR
     BE -- "SQLAlchemy" --> DB[("SQLite file (dev)<br/>or Postgres<br/>users, strategies")]
 ```
 
+The optional **Document Q&A** feature (the Documents tab) is a separate package, `backend/docqa/`, with its own Postgres database and local models; it is described in [DOCQA.md](DOCQA.md) and does not touch the backtest flow below.
+
 The browser only talks to the Vite dev server. `vite.config.ts` proxies every `/api` request to the FastAPI backend, so there are no CORS issues in development (the backend also allows all origins).
 
 ## 2. End-to-end flow: running a backtest

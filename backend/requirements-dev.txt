@@ -1,1 +1,3 @@
 ta>=0.11
+reportlab>=4.0
+pdfplumber>=0.11      # only for the experimental extractor in evals/

@@ -11,3 +11,7 @@ google-auth>=2.35
 requests>=2.32
 itsdangerous>=2.2
 psycopg[binary]>=3.2
+pgvector>=0.3
+pypdf>=5.0
+python-multipart>=0.0.12
+fastembed>=0.5

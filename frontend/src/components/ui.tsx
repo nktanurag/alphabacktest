@@ -14,7 +14,7 @@ export const inputCls =
 
 export function Button({ variant = "secondary", className = "", ...p }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "danger" | "ghost" }) {
   const styles = {
-    primary: "bg-primary hover:bg-indigo-500 text-white disabled:bg-primary/30 disabled:text-white/40",
+    primary: "bg-primary hover:brightness-110 text-on-primary disabled:bg-primary/30 disabled:text-on-primary/70",
     secondary: "border border-white/10 text-slate-300 hover:bg-white/5 disabled:opacity-40",
     danger: "bg-danger/10 border border-danger/25 text-danger hover:bg-danger/15",
     ghost: "text-slate-400 hover:text-slate-200 hover:bg-white/5",
