@@ -222,6 +222,10 @@ Login is on only when `GOOGLE_CLIENT_ID` is set (setup in the [root README](../R
 
 The cookie is signed, HttpOnly and `SameSite=Lax`, valid for 14 days. Set `COOKIE_SECURE=1` when serving over HTTPS.
 
+### Document Q&A (optional)
+
+The `/api/docqa/*` endpoints (documents, ask, config) exist only when `DOCQA_DATABASE_URL` is set; otherwise they answer 503. They are documented in the "API reference" section of [../docs/DOCQA.md](../docs/DOCQA.md), which also covers setup. The code is the separate `docqa/` package.
+
 ### Health check
 
 `GET /api/health` returns `{"ok": true}`.

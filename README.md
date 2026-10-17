@@ -1,6 +1,6 @@
 # AlphaBacktest
 
-A no-code historical strategy backtester. Pick a stock, define entry conditions (any number, combined with AND) and exit rules (holding period, stop-loss, take-profit, exit signal), and see how the strategy would have performed: metrics, an equity curve against buy-and-hold, and every simulated trade with the reason it fired. Strategies can be saved and reopened.
+A no-code historical strategy backtester. Pick a stock, define entry conditions (any number, combined with AND) and exit rules (holding period, stop-loss, take-profit, exit signal), and see how the strategy would have performed: metrics, an equity curve against buy-and-hold, and every simulated trade with the reason it fired. Strategies can be saved and reopened. An optional **Documents** tab adds Document Q&A: upload annual-report PDFs and ask questions, with local search and (optionally) Gemini-written answers that cite their sources.
 
 <img width="1182" height="1244" alt="image" src="https://github.com/user-attachments/assets/40267afb-06fc-446a-b6ca-2592b1ff1b46" />
 
@@ -15,7 +15,7 @@ A no-code historical strategy backtester. Pick a stock, define entry conditions 
 - **Backend:** Python 3.10+ with FastAPI, pandas, numpy and yfinance (`backend/`)
 - **Data:** daily prices from Yahoo Finance via `yfinance`
 
-Hosting it on the internet: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Detailed design and code flow: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Backend API reference: [backend/README.md](backend/README.md).
+Hosting it on the internet: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Detailed design and code flow: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Backend API reference: [backend/README.md](backend/README.md). Document Q&A (upload PDFs and ask questions, optional): setup, design and status in [docs/DOCQA.md](docs/DOCQA.md), evaluation plan in [docs/DOCQA_EVAL.md](docs/DOCQA_EVAL.md).
 
 ## Repository layout
 
@@ -23,9 +23,12 @@ Hosting it on the internet: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md). Detailed d
 alphabacktest/
 ├── README.md
 ├── docs/ARCHITECTURE.md        # flow diagrams and code walkthrough
+├── docs/DOCQA.md               # Document Q&A: setup, design, status
+├── docs/DOCQA_EVAL.md          # Document Q&A: retrieval evaluation plan
 ├── backend/
 │   ├── README.md               # API reference
 │   ├── requirements.txt        # runtime; requirements-dev.txt adds test-only deps
+│   ├── docqa/                  # Document Q&A (separate package, optional): upload, chunk, embed, search, rerank, answer
 │   ├── alphabacktest/
 │   │   ├── api.py              # HTTP endpoints (FastAPI): backtest, symbol search
 │   │   ├── auth.py             # Google sign-in, session cookie, current_user()
@@ -115,6 +118,24 @@ Open **http://localhost:5173**. The dev server forwards `/api` requests to the b
 4. Click **Run Backtest**. You get metrics, the equity curve against buy-and-hold, and a trade table. Click a trade to see why it triggered.
 5. Click **Save Strategy**, then find it later under **Saved Strategies**.
 
+### 5. Optional: Document Q&A (the Documents tab)
+
+Off by default; the backtester works without it. It needs **Postgres 17 or 18 with the pgvector extension** (a second database, separate from the strategies one) and about 700 MB of disk for two models that download on first use and run on your CPU. **No API key is needed to search.** A free [Gemini API key](https://aistudio.google.com/apikey) is needed only for the optional "Generate an answer" box; when you use it, your question and the top passages are sent to Google (on the free tier Google may use them to improve its products).
+
+```bash
+# macOS example; other systems and Docker: docs/DOCQA.md
+brew install postgresql@18 pgvector
+brew services start postgresql@18
+/opt/homebrew/opt/postgresql@18/bin/createdb docqa
+
+# in the SAME terminal that starts the backend, from backend/
+export DOCQA_DATABASE_URL=postgresql://localhost/docqa
+export GEMINI_API_KEY=your-key-here        # optional
+uvicorn alphabacktest.api:app --port 8080 --reload
+```
+
+Check `curl localhost:8080/api/docqa/config` shows `"enabled": true`, then open the **Documents** tab. Full setup, a model-cache tip and troubleshooting: [docs/DOCQA.md](docs/DOCQA.md).
+
 ## Configuration
 
 | Setting | Where | Default | Purpose |
@@ -125,8 +146,9 @@ Open **http://localhost:5173**. The dev server forwards `/api` requests to the b
 | `GOOGLE_CLIENT_ID` | backend environment | unset | Turns on Google sign-in. Unset = no login, everyone shares one local user |
 | `SESSION_SECRET` | backend environment | unset | Long random string that signs session cookies. Required when `GOOGLE_CLIENT_ID` is set |
 | `COOKIE_SECURE` | backend environment | off | Set to `1` when serving over HTTPS so the cookie is only sent securely |
+| `DOCQA_DATABASE_URL` | backend environment | unset (feature off) | Postgres with pgvector for Document Q&A, e.g. `postgresql://localhost/docqa`. More `DOCQA_*` settings and `GEMINI_API_KEY`: [docs/DOCQA.md](docs/DOCQA.md) |
 
-Other ports and hosts work too, as long as the frontend can reach the backend. There is no `.env` file; settings are plain environment variables, and none are needed unless you turn on Google sign-in.
+Other ports and hosts work too, as long as the frontend can reach the backend. There is no `.env` file; settings are plain environment variables, and none are needed unless you turn on Google sign-in or Document Q&A. Set them in the terminal that starts the backend, before it starts.
 
 ### Google sign-in (optional)
 
@@ -150,14 +172,14 @@ Keep `SESSION_SECRET` the same between restarts, or everyone is signed out. Stra
 
 ```bash
 # backend (from backend/, with the virtual environment active)
-pip install -r requirements-dev.txt     # adds the `ta` library used to cross-check indicators
+pip install -r requirements-dev.txt     # adds `ta` (indicator cross-check) and `reportlab` (builds test PDFs)
 python -m pytest
 
 # frontend (from frontend/)
 npm run build                           # type-check + production build
 ```
 
-The backend tests run offline (no Yahoo access needed).
+The backend tests run offline (no Yahoo access needed). The Document Q&A tests need a local Postgres with pgvector and an empty database named `docqa_test` (`createdb docqa_test`; override with `DOCQA_TEST_DATABASE_URL`); without it they are skipped. They use fake models, so no key or download is needed.
 
 ## Troubleshooting
 
@@ -168,6 +190,7 @@ The backend tests run offline (no Yahoo access needed).
 | Saved strategies page shows an error | Backend not running or its database file is not writable. Check the terminal running `uvicorn` |
 | `address already in use` | Another program uses the port. Use another one, for example `--port 8090` and `API_URL=http://localhost:8090 npm run dev` |
 | `SyntaxError` / `match` errors starting the backend | Python older than 3.10. Install a newer Python and recreate the virtual environment |
+| No **Documents** tab, or Document Q&A errors | `DOCQA_DATABASE_URL` was not set in the terminal that started the backend, or Postgres lacks pgvector. See the troubleshooting table in [docs/DOCQA.md](docs/DOCQA.md) |
 | Vite warns that the project root contains `#` | You pasted a `# comment` after `npm run dev`. Run the command on its own |
 
 ## Features (current)
@@ -183,6 +206,7 @@ The backend tests run offline (no Yahoo access needed).
 - Results: total return, CAGR, win rate, profit factor, max drawdown, Sharpe; trade summary; sortable/filterable trade table; per-trade drawer with entry reasons
 - States: validation errors, running (cancellable), no trades, warnings, failure
 - Prices and P&L shown in the asset's own currency (e.g. INR for `RELIANCE.NS`)
+- Document Q&A (optional): upload PDFs; hybrid search (meaning + keywords), reranking, adjustable chunking and cutoff, ranking shown before and after reranking, optional cited answers from Gemini
 
 ## Backtest rules (important for interpreting results)
 

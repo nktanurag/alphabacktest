@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, AuthRequired, getAuthConfig, getMe, logout, runBacktest, saveStrategy, type SavedStrategy, type User } from "./api";
 import { newId } from "./conditions";
+import { docqaConfig } from "./docqaApi";
+import Documents from "./components/Documents";
 import ThemeToggle from "./components/ThemeToggle";
 import Results, { Failed } from "./components/Results";
 import Running from "./components/Running";
@@ -34,7 +36,8 @@ type View =
   | { name: "running" }
   | { name: "results"; result: BacktestResult }
   | { name: "failed"; message: string }
-  | { name: "saved" };
+  | { name: "saved" }
+  | { name: "docs" };
 
 export default function App() {
   const [strategy, setStrategy] = useState<Strategy>(DEFAULT_STRATEGY);
@@ -48,8 +51,10 @@ export default function App() {
   // clientId is null when the server has login switched off (everything stays open).
   const [clientId, setClientId] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [signIn, setSignIn] = useState<{ reason: string; then: "save" | "saved" } | null>(null);
+  const [signIn, setSignIn] = useState<{ reason: string; then: "save" | "saved" | "docs" } | null>(null);
+  const [docsOn, setDocsOn] = useState(false);
 
+  useEffect(() => { docqaConfig().then((c) => setDocsOn(c.enabled)).catch(() => {}); }, []);
   useEffect(() => {
     getAuthConfig()
       .then(async (c) => { setClientId(c.googleClientId); if (c.googleClientId) setUser(await getMe()); })
@@ -57,10 +62,11 @@ export default function App() {
   }, []);
 
   const signedOut = clientId !== null && user === null;
-  const askSignIn = (reason: string, then: "save" | "saved") => setSignIn({ reason, then });
+  const askSignIn = (reason: string, then: "save" | "saved" | "docs") => setSignIn({ reason, then });
   const startSave = () => (signedOut ? askSignIn("Sign in to save strategies to your account.", "save") : setSaving(true));
   const openSaved = () => (signedOut ? askSignIn("Sign in to see your saved strategies.", "saved") : setView({ name: "saved" }));
-  const sessionExpired = (then: "save" | "saved") => {
+  const openDocs = () => (signedOut ? askSignIn("Sign in to use your documents.", "docs") : setView({ name: "docs" }));
+  const sessionExpired = (then: "save" | "saved" | "docs") => {
     setUser(null);
     askSignIn("Your session expired. Sign in again to continue.", then);
   };
@@ -71,6 +77,7 @@ export default function App() {
     setSignIn(null);
     if (then === "save") setSaving(true);
     if (then === "saved") setView({ name: "saved" });
+    if (then === "docs") setView({ name: "docs" });
   };
 
   const signOut = async () => {
@@ -78,7 +85,7 @@ export default function App() {
     setUser(null);
     setSaved(null);
     setSaving(false);
-    if (view.name === "saved") toBuilder();
+    if (view.name === "saved" || view.name === "docs") toBuilder();
   };
 
   const run = async () => {
@@ -132,8 +139,8 @@ export default function App() {
     toBuilder();
   };
 
-  const tab = view.name === "saved" ? "saved" : "builder";
-  const navBtn = (id: "builder" | "saved", label: string, onClick: () => void) => (
+  const tab = view.name === "saved" ? "saved" : view.name === "docs" ? "docs" : "builder";
+  const navBtn = (id: "builder" | "saved" | "docs", label: string, onClick: () => void) => (
     <button onClick={onClick} aria-current={tab === id ? "page" : undefined}
       className={`px-3 py-1.5 rounded-md text-sm ${tab === id ? "bg-primary/15 text-primary" : "text-slate-400 hover:text-slate-200"}`}>{label}</button>
   );
@@ -147,6 +154,7 @@ export default function App() {
             <div className="flex gap-1">
               {navBtn("builder", "Strategy Builder", toBuilder)}
               {navBtn("saved", "Saved Strategies", openSaved)}
+              {docsOn && navBtn("docs", "Documents", openDocs)}
             </div>
             <div className="ml-auto flex items-center gap-3 text-sm">
               {clientId && (user ? (
@@ -168,6 +176,7 @@ export default function App() {
       {view.name === "running" && <Running strategy={strategy} onCancel={() => { abort.current?.abort(); toBuilder(); }} />}
       {view.name === "results" && <Results result={view.result} onEdit={toBuilder} onRunAgain={run} onSave={startSave} />}
       {view.name === "saved" && <SavedStrategies onOpen={open} onNew={startNew} onBack={toBuilder} onAuthRequired={() => { toBuilder(); sessionExpired("saved"); }} />}
+      {view.name === "docs" && <Documents onAuthRequired={() => { toBuilder(); sessionExpired("docs"); }} />}
       {view.name === "failed" && <Failed message={view.message} onRetry={run} onEdit={toBuilder} />}
       {saving && (
         <SaveDialog initialName={strategy.name} initialDescription={saved?.description ?? ""} isUpdate={saved !== null}

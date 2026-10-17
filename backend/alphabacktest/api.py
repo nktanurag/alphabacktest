@@ -6,6 +6,9 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from docqa import config as docqa_config, db as docqa_db
+from docqa.api import router as docqa_router
+
 from . import auth, data
 from .db import init_db
 from .engine import run_backtest, validate_strategy
@@ -17,12 +20,15 @@ log = logging.getLogger("alphabacktest")
 async def lifespan(_: FastAPI):
     auth.check_config()
     init_db()
+    if docqa_config.enabled():
+        docqa_db.init_db()
     yield
 
 
 app = FastAPI(title="AlphaBacktest", lifespan=lifespan)
 app.include_router(auth.router)
 app.include_router(strategies_router)
+app.include_router(docqa_router)
 # No CORS middleware: the frontend is served from the same address as the API
 # (or proxied to it by the Vite dev server), so browsers never make cross-origin calls.
 
