@@ -5,7 +5,7 @@ import type { EquityPoint } from "../types";
 // Categorical slots 1 and 2 of the reference palette (dark mode), validated against the surface.
 const STRATEGY = "#3987e5";
 const BENCH = "#d95926";
-const SURFACE = "#0e0e20";
+const SURFACE = "var(--color-surface)";
 const H = 280;
 const PAD = { l: 64, r: 16, t: 12, b: 28 };
 
@@ -84,12 +84,12 @@ export default function EquityChart({ strategy, benchmark, currency }: { strateg
           <svg width={w} height={H} role="img" aria-label="Equity curve: strategy versus buy and hold" onMouseMove={onMove} onMouseLeave={() => setHover(null)} className="block">
             {geo.ticks.map((t) => (
               <g key={t}>
-                <line x1={PAD.l} x2={w - PAD.r} y1={geo.y(t)} y2={geo.y(t)} stroke="rgba(255,255,255,.07)" strokeWidth={1} />
-                <text x={PAD.l - 8} y={geo.y(t) + 4} textAnchor="end" fontSize={11} fill="#94a3b8">{compact(t, currency)}</text>
+                <line x1={PAD.l} x2={w - PAD.r} y1={geo.y(t)} y2={geo.y(t)} stroke="var(--chart-grid)" strokeWidth={1} />
+                <text x={PAD.l - 8} y={geo.y(t) + 4} textAnchor="end" fontSize={11} fill="var(--chart-axis)">{compact(t, currency)}</text>
               </g>
             ))}
             {geo.xt.map((i) => (
-              <text key={i} x={geo.x(i)} y={H - 8} textAnchor={i === 0 ? "start" : i === last ? "end" : "middle"} fontSize={11} fill="#94a3b8">
+              <text key={i} x={geo.x(i)} y={H - 8} textAnchor={i === 0 ? "start" : i === last ? "end" : "middle"} fontSize={11} fill="var(--chart-axis)">
                 {new Date(`${strategy[i]!.date}T12:00:00`).toLocaleDateString("en-GB", { month: "short", year: "2-digit" })}
               </text>
             ))}
@@ -101,7 +101,7 @@ export default function EquityChart({ strategy, benchmark, currency }: { strateg
               const p = pts[i];
               return p && <circle key={c} cx={geo.x(i)} cy={geo.y(p.value)} r={4} fill={c} stroke={SURFACE} strokeWidth={2} />;
             })}
-            {hi !== null && <line x1={geo.x(hi)} x2={geo.x(hi)} y1={PAD.t} y2={H - PAD.b} stroke="rgba(255,255,255,.25)" strokeWidth={1} />}
+            {hi !== null && <line x1={geo.x(hi)} x2={geo.x(hi)} y1={PAD.t} y2={H - PAD.b} stroke="var(--chart-cursor)" strokeWidth={1} />}
           </svg>
           {hi !== null && (
             <div className="pointer-events-none absolute top-2 z-10 rounded-lg border border-white/10 bg-surface px-3 py-2 text-xs shadow-xl"

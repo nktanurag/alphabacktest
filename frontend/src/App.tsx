@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, AuthRequired, getAuthConfig, getMe, logout, runBacktest, saveStrategy, type SavedStrategy, type User } from "./api";
 import { newId } from "./conditions";
+import ThemeToggle from "./components/ThemeToggle";
 import Results, { Failed } from "./components/Results";
 import Running from "./components/Running";
 import SaveDialog from "./components/SaveDialog";
@@ -147,18 +148,17 @@ export default function App() {
               {navBtn("builder", "Strategy Builder", toBuilder)}
               {navBtn("saved", "Saved Strategies", openSaved)}
             </div>
-            {clientId && (
-              <div className="ml-auto flex items-center gap-3 text-sm">
-                {user ? (
-                  <>
-                    <span className="text-slate-400 hidden sm:inline">{user.name ?? user.email}</span>
-                    <button onClick={signOut} className="text-slate-400 hover:text-slate-200">Sign out</button>
-                  </>
-                ) : (
-                  <button onClick={() => askSignIn("Sign in to save and reopen your strategies.", "saved")} className="text-slate-300 hover:text-white">Sign in</button>
-                )}
-              </div>
-            )}
+            <div className="ml-auto flex items-center gap-3 text-sm">
+              {clientId && (user ? (
+                <>
+                  <span className="text-slate-400 hidden sm:inline">{user.name ?? user.email}</span>
+                  <button onClick={signOut} className="text-slate-400 hover:text-slate-200">Sign out</button>
+                </>
+              ) : (
+                <button onClick={() => askSignIn("Sign in to save and reopen your strategies.", "saved")} className="text-slate-300 hover:text-white">Sign in</button>
+              ))}
+              <ThemeToggle />
+            </div>
           </div>
         </nav>
       )}

@@ -11,9 +11,44 @@
   --color-success: #10b981;
   --color-danger: #f43f5e;
   --color-warning: #f59e0b;
+  --color-on-primary: #ffffff;
+}
+
+/* Dark is the default. Light mode re-points the same tokens, so no component needs to know the theme:
+   - surfaces and status colors are redefined,
+   - the slate text scale is reversed (light text on dark becomes dark text on light),
+   - `white` becomes the dark ink, so white/8 borders and hover tints turn into dark overlays. */
+:root {
+  color-scheme: dark;
+  --ink: #e2e8f0;
+  --chart-grid: rgba(255, 255, 255, .07);
+  --chart-axis: #94a3b8;
+  --chart-cursor: rgba(255, 255, 255, .25);
+  --scroll-thumb: rgba(255, 255, 255, .12);
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: #f3f5fa;
+  --color-surface: #ffffff;
+  --color-field: #f8fafc;
+  --color-primary: #4f46e5;
+  --color-success: #059669;
+  --color-danger: #e11d48;
+  --color-warning: #b45309;
+  --color-white: #0b1220;
+  --color-slate-200: #1e293b;
+  --color-slate-300: #334155;
+  --color-slate-400: #475569;
+  --color-slate-500: #5f6f86;
+  --color-slate-600: #75849a;
+  --ink: #1e293b;
+  --chart-grid: rgba(15, 23, 42, .09);
+  --chart-axis: #5f6f86;
+  --chart-cursor: rgba(15, 23, 42, .3);
+  --scroll-thumb: rgba(15, 23, 42, .18);
 }
 
 html, body, #root { height: 100%; margin: 0; }
-body { background: var(--color-bg); color: #e2e8f0; font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+body { background: var(--color-bg); color: var(--ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 4px; }
